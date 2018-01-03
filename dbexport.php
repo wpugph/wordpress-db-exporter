@@ -1,27 +1,71 @@
 <?php
 
+include ( 'wp-config.php' );
 #settings
 $filename = 'db.sql.gz';
 
-# script start
-echo 'startdump<br />';
-include ( 'wp-config.php' );
-echo 'exporting DB contents of ' . DB_NAME . '<br>';
-try {
-	$world_dumper = Shuttle_Dumper::create(array(
-		'host' => DB_HOST,
-	    'username' => DB_USER,
-	    'password' => DB_PASSWORD,
-	    'db_name' => DB_NAME,
-	));
-	// dump the database to gzipped file
-	$world_dumper->dump('dbbak.sql.gz');
-	// $world_dumper->dump('dbbak.sql');
-
-} catch(Shuttle_Exception $e) {
-	echo "Couldn't dump database: " . $e->getMessage();
+if (file_exists($filename)) {
+    echo "The file $filename exists";
+	// downloadfile( $filename );
+} else {
+    // "The file $filename does not exist";
+	startscript( $filename, $table_prefix );
+	redirect();
 }
-echo 'enddump<br />';
+
+// @header("Content-type: application/zip");
+// @header("Content-Disposition: attachment; filename=$filename");
+// echo file_get_contents( $filename );
+//downloadfile( $filename );
+
+# script start
+function startscript( $filename, $table_prefix ) {
+	echo '=== Start DB Dump ===<br />';
+	echo 'exporting DB content: <br />';
+	echo 'DBNAME: ' . DB_NAME . '<br /> ';
+	echo 'DB Prefix: ' . $table_prefix . '<br>';
+	echo 'exportfile: ' . $filename . '<br>';
+	try {
+		$world_dumper = Shuttle_Dumper::create(array(
+			'host' => DB_HOST,
+		    'username' => DB_USER,
+		    'password' => DB_PASSWORD,
+		    'db_name' => DB_NAME,
+		));
+		// dump the database to gzipped file
+		$world_dumper->dump( $filename, $table_prefix );
+
+		echo '==== DB dump success!! <br />';
+		echo downloadlink( $filename );
+
+	} catch(Shuttle_Exception $e) {
+		echo "Couldn't dump database: " . $e->getMessage();
+	}
+}
+
+function getfileurl( $filename ) {
+	return $file =  (isset($_SERVER['HTTPS']) ? "https" : "http") . "://$_SERVER[HTTP_HOST]" . '/' . $filename;
+}
+
+function redirect() {
+	$url =  (isset($_SERVER['HTTPS']) ? "https" : "http") . "://$_SERVER[HTTP_HOST]" . '/' .  $_SERVER['REQUEST_URI'];
+	header("Location: $url");
+	exit();
+}
+
+function downloadfile( $filename ) {
+	$file =	getfileurl( $filename );
+	header( "Content-Description: File Transfer" );
+	header( "Content-Type: application/octet-stream" );
+	header( "Content-Disposition: attachment; filename='" . basename($file) . "'" );
+	readfile ($file);
+	exit();
+}
+
+function downloadlink( $filename ) {
+	$url = getfileurl( $filename );
+	echo '<a href="' . $url . '" download>Download here if the download did not auto start: '.  $url .' </a> ';
+}
 
 /**
  * Abstract dump file: provides common interface for writing
